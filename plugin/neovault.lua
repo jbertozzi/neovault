@@ -2,6 +2,7 @@
 
 local neovault = require('neovault')
 local vault_cli = require('neovault.vault_cli')
+local bufutil = require('neovault.buf')
 
 -- plugin state
 local state = {
@@ -10,25 +11,6 @@ local state = {
   history = {},
   open_secret_path = nil, -- current secet path (for :w)
 }
-
--- Helpers
-local function set_explorer_buffer_opts(buf)
-  vim.bo[buf].buftype   = 'nofile'
-  vim.bo[buf].bufhidden = 'hide'
-  vim.bo[buf].swapfile  = false
-  vim.bo[buf].modifiable = false
-  vim.bo[buf].readonly  = true
-  vim.bo[buf].filetype  = 'neovault-explorer'
-end
-
-local function set_yaml_buffer_opts(buf)
-  vim.bo[buf].buftype   = 'acwrite' -- intercept :w
-  vim.bo[buf].bufhidden = 'hide'
-  vim.bo[buf].swapfile  = false
-  vim.bo[buf].modifiable = true
-  vim.bo[buf].readonly  = false
-  vim.bo[buf].filetype  = 'yaml'
-end
 
 -- parse YAML "key: value"
 local function parse_simple_yaml(lines)
@@ -57,7 +39,7 @@ local function update_buffer(paths)
   else
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { '(empty)' })
   end
-  set_explorer_buffer_opts(buf)
+  bufutil.set_explorer_buffer_opts(buf)
 end
 
 -- follow the path (<CR> when exploring)
@@ -206,3 +188,13 @@ end
 function _G.neovault_handle_bs()
   _G.neovault_go_back()
 end
+
+vim.api.nvim_create_user_command('NeoVaultSearch', function(opts)
+  local arg = opts.fargs[1]
+  local mount = arg or require('neovault').get_config().mount_point
+  require('neovault.telescope').search({ mount_point = mount })
+end, {
+  nargs = '?',
+  complete = 'file', -- permet "secret/" etc.
+  desc = 'Search Vault secrets via Telescope. Usage: :NeoVaultSearch [mount_point]',
+})
