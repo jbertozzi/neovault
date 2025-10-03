@@ -1,6 +1,7 @@
 -- Entry point for the neovault plugin.
 -- Manages the user command, buffer state, and keymaps.
 
+local neovault = require('neovault')
 local vault_cli = require('neovault.vault_cli')
 
 -- Plugin state management
@@ -78,18 +79,31 @@ vim.api.nvim_create_user_command('VaultExplorer', function(opts)
   vim.cmd('enew')
   vim.api.nvim_buf_set_option(0, 'buftype', 'nofile')
   vim.api.nvim_buf_set_option(0, 'swapfile', false)
-  
-  state.current_path = opts.fargs[1] or ""
+
+  local config = neovault.get_config()
+
+  -- Analyse de l'argument passé
+  local arg = opts.fargs[1] or ""
+  local mount_point, path = arg:match("([^/]+)/?(.*)")
+
+  -- Si aucun argument, on utilise la config
+  mount_point = mount_point or config.mount_point
+  path = path or ""
+
+  state.mount_point = mount_point
+  state.current_path = path
   state.history = { state.current_path }
-  
+
   local paths = vault_cli.list_paths(state.mount_point, state.current_path)
   update_buffer(paths)
 
-  -- Set buffer-local keymaps
   vim.api.nvim_buf_set_keymap(0, 'n', '<CR>', ':lua _G.neovault_handle_cr()<CR>', { silent = true, noremap = true })
   vim.api.nvim_buf_set_keymap(0, 'n', '<BS>', ':lua _G.neovault_handle_bs()<CR>', { silent = true, noremap = true })
-
-end, { nargs = '?', complete = 'file' })
+end, {
+  nargs = '?',
+  complete = 'file',
+  desc = 'Explore Vault secrets. Usage: :VaultExplorer [mount_point/path]',
+})
 
 -- Fonction principale pour gérer les keybindings en fonction du filetype
 function _G.neovault_handle_cr()

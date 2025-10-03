@@ -1,5 +1,19 @@
 -- Lua module entry point for neovault.
--- Additional functions or configuration can be added here if needed.
--- Currently, all core logic is within vault_cli.lua and telescope.lua.
 
-return {}
+local M = {}
+
+-- default config
+local config = {
+  mount_point = "secret"
+}
+
+function M.setup(opts)
+  config = vim.tbl_deep_extend("force", config, opts or {})
+  print("neovault setup called with:", vim.inspect(config))
+end
+
+function M.get_config()
+  return config
+end
+
+return M

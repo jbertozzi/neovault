@@ -7,9 +7,9 @@ local M = {}
 --- @return table|nil Returns a Lua table representing the JSON output, or nil on error.
 local function run_vault_command(args)
     local command = 'vault ' .. args
-    -- print("executing raw command: ", command)
+    print("executing raw command: ", command)
     local stdout = vim.fn.system(command)
-    -- print("raw output: ", stdout)
+    print("raw output: ", stdout)
     if vim.v.shell_error ~= 0 then
         vim.notify('Vault CLI error: ' .. stdout, vim.log.levels.ERROR)
         return nil
