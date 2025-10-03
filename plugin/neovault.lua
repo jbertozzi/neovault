@@ -2,7 +2,7 @@
 
 local neovault = require('neovault')
 local vault_cli = require('neovault.vault_cli')
-local bufutil = require('neovault.buf')
+local utils = require('neovault.utils')
 
 -- plugin state
 local state = {
@@ -39,7 +39,7 @@ local function update_buffer(paths)
   else
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { '(empty)' })
   end
-  bufutil.set_explorer_buffer_opts(buf)
+  utils.set_explorer_buffer_opts(buf)
 end
 
 -- follow the path (<CR> when exploring)
@@ -76,7 +76,14 @@ function _G.neovault_follow_path()
 
 
       set_yaml_buffer_opts(buf)
+
       vim.api.nvim_buf_set_lines(buf, 0, -1, false, yaml_content)
+      utils.map_copy_value_cr(buf, {
+        register = '+',
+        notify = true,
+        strip_quotes = true,
+        strip_inline_comment = true,
+    })
 
       -- context
       vim.b.neovault = true

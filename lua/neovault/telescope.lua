@@ -1,5 +1,5 @@
 -- lua/neovault/telescope.lua
-local bufutil = require('neovault.buf')
+local utils = require('neovault.utils')
 local M = {}
 
 local pickers      = require('telescope.pickers')
@@ -44,17 +44,6 @@ local function fetch_paths_with_rvault(mount_point, on_done)
   }):start()
 end
 
--- Helper : formater une table {k=v} en YAML lignes
--- helper : format table {k=v} in YAML lines
-local function to_yaml_lines(tbl)
-  local out = {}
-  for k, v in pairs(tbl or {}) do
-    table.insert(out, string.format("%s: %s", k, tostring(v)))
-  end
-  if #out == 0 then out = { '# (vide)' } end
-  return out
-end
-
 -- open secret in a editable buffer
 local function open_secret_buffer(mount_point, full_path)
   local data = vault_cli.read_secret(mount_point, full_path)
@@ -70,13 +59,20 @@ local function open_secret_buffer(mount_point, full_path)
   pcall(vim.api.nvim_buf_set_name, buf, virt_name)
   vim.b.neovault = true
 
-  bufutil.set_yaml_buffer_opts(buf)
+  utils.set_yaml_buffer_opts(buf)
 
   -- content
-  local yaml_content = to_yaml_lines(data)
+  local yaml_content = utils.to_yaml_lines(data)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, yaml_content)
 
-  -- Contexte
+  utils.map_copy_value_cr(buf, {
+    register = '+',
+    notify = true,
+    strip_quotes = true,
+    strip_inline_comment = true,
+  })
+
+  -- Context
   vim.b.neovault_secret_path = full_path
   vim.b.neovault_mount       = mount_point
 
@@ -127,7 +123,7 @@ local function make_secret_previewer(mount_point)
             local raw = table.concat(j:result(), '\n')
             local ok, json = pcall(vim.json.decode, raw)
             if ok and json and json.data and json.data.data then
-              lines = to_yaml_lines(json.data.data)
+              lines = utils.to_yaml_lines(json.data.data)
             else
               lines = { '# Error decoding secret JSON' }
             end
@@ -150,6 +146,7 @@ function M.search(opts)
   opts = opts or {}
   local config = neovault.get_config()
   local mount_point = opts.mount_point or config.mount_point or 'secret'
+  mount_point = utils.ensure_trailing_slash(mount_point)
 
   if not vim.env.VAULT_ADDR or not vim.env.VAULT_TOKEN then
     vim.notify("VAULT_ADDR or VAULT_TOKEN environment variables are not set.", vim.log.levels.WARN)
