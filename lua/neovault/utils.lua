@@ -123,17 +123,43 @@ function M.map_copy_value_cr(bufnr, opts)
     buffer = bufnr or 0,
     silent = true,
     noremap = true,
-    desc = 'NeoVault: copier la valeur de la ligne courante',
+    desc = 'NeoVault: copy current value',
   })
 end
 
 function M.to_yaml_lines(tbl)
-  local out = {}
-  for k, v in pairs(tbl or {}) do
-    table.insert(out, string.format("%s: %s", k, tostring(v)))
+    local out = {}
+
+    local function split_lines(s)
+      -- normalize CRLF -> LF then split
+      s = tostring(s):gsub('\r\n', '\n')
+      local t = {}
+      for line in s:gmatch('([^\n]*)\n?') do
+        table.insert(t, line)
+      end
+      -- remove last line if because of split
+      if #t > 0 and t[#t] == '' then
+        table.remove(t)
+      end
+      return t
+    end
+
+    for k, v in pairs(tbl or {}) do
+      if type(v) == 'string' and v:find('\n') then
+        -- YAML block scalar
+        table.insert(out, string.format('%s: |', k))
+        for _, l in ipairs(split_lines(v)) do
+          table.insert(out, '  ' .. l) -- indent
+        end
+      else
+        table.insert(out, string.format('%s: %s', k, tostring(v)))
+      end
+    end
+
+    if #out == 0 then
+      out = { '# (empty)' }
+    end
+    return out
   end
-  if #out == 0 then out = { '# (vide)' } end
-  return out
-end
 
 return M

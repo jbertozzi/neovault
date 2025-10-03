@@ -164,9 +164,6 @@ function M.search(opts)
     local dynamic_finder = finders.new_dynamic({
       fn = function(prompt)
         prompt = prompt or ''
-        if #prompt < 2 then
-          return {}
-        end
         return all_paths
       end,
       entry_maker = function(line)
@@ -183,7 +180,7 @@ function M.search(opts)
 
     -- 4) picker
     pickers.new(opts, {
-      prompt_title = string.format("NeoVault (%s) — type at least two char", mount_point),
+      prompt_title = string.format("NeoVault (%s)", mount_point),
       finder       = dynamic_finder,
       sorter       = conf.generic_sorter(opts),
       previewer    = previewer,
