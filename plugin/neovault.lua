@@ -75,7 +75,7 @@ function _G.neovault_follow_path()
       vim.bo[buf].buflisted = false
 
 
-      set_yaml_buffer_opts(buf)
+      utils.set_yaml_buffer_opts(buf)
 
       vim.api.nvim_buf_set_lines(buf, 0, -1, false, yaml_content)
       utils.map_copy_value_cr(buf, {
