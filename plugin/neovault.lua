@@ -33,6 +33,7 @@ end
 local function update_buffer(paths)
   local buf = 0
   vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+  vim.api.nvim_buf_set_option(buf, 'readonly', false)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
   if paths and #paths > 0 then
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, paths)
@@ -74,16 +75,18 @@ function _G.neovault_follow_path()
       pcall(vim.api.nvim_buf_set_name, buf, virt_name)
       vim.bo[buf].buflisted = false
 
+      vim.bo[buf].modifiable = true
+      vim.bo[buf].readonly = false
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, yaml_content)
 
       utils.set_yaml_buffer_opts(buf)
 
-      vim.api.nvim_buf_set_lines(buf, 0, -1, false, yaml_content)
       utils.map_copy_value_cr(buf, {
         register = '+',
         notify = true,
         strip_quotes = true,
         strip_inline_comment = true,
-    })
+      })
 
       -- context
       vim.b.neovault = true
