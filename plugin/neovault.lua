@@ -137,7 +137,7 @@ function _G.neovault_go_back()
 end
 
 -- user command
-vim.api.nvim_create_user_command('NeoVault', function(opts)
+vim.api.nvim_create_user_command('NeoVaultBrowse', function(opts)
   if not vim.env.VAULT_ADDR or not vim.env.VAULT_TOKEN then
     vim.notify("VAULT_ADDR or VAULT_TOKEN environment variables are not set.", vim.log.levels.WARN)
     return
@@ -170,7 +170,7 @@ vim.api.nvim_create_user_command('NeoVault', function(opts)
 end, {
   nargs = '?',
   complete = 'file',
-  desc = 'Explore Vault secrets. Usage: :NeoVault [mount_point/path]',
+  desc = 'Explore Vault secrets. Usage: :NeoVaultBrowse [mount_point/path]',
 })
 
 -- <CR> management depending filetype
