@@ -33,73 +33,44 @@ end
 ---@field strip_quotes boolean?  remove quotes (default: true)
 ---@field strip_inline_comment boolean?  remove inline comment " # ... " if not quoted
 
---- normalize yaml "key: value"
----@param raw string
+--- Normalize YAML value (trim, handle block scalars)
+---@param value string
 ---@param opts NeoVaultCopyOpts|nil
 ---@return string
-function M.normalize_value(raw, opts)
-  opts = opts or {}
-  local strip_quotes        = (opts.strip_quotes ~= false)          -- default: true
-  local strip_inline_comment= (opts.strip_inline_comment ~= false)  -- default: true
+function M.normalize_value(value, opts)
+  value = value or ''
+  value = value:gsub('^%s+', ''):gsub('%s+$', '')
 
-  -- trim
-  local v = raw:gsub('^%s+', ''):gsub('%s+$', '')
+  -- Handle block scalar indicators
+  if value == '|' or value == '>' then
+    -- Remove the first line (| or >) and keep indented lines
+    local lines = vim.api.nvim_buf_get_lines(0, vim.fn.line('.') , -1, false)
+    local indent = lines[1]:match('^(%s*)') or ''
+    local block_lines = {}
 
-  -- if value start with quote, we don't cut on '#'
-  local starts_with_quote = v:match("^['\"]")
-  if strip_inline_comment and not starts_with_quote then
-    -- remove " # ...", if any
-    v = v:gsub('%s+#.*$', '')
-    v = v:gsub('%s+$', '')
-  end
-
-  -- remove quotes
-  if strip_quotes and #v >= 2 then
-    local first, last = v:sub(1,1), v:sub(-1)
-    if (first == '"' and last == '"') or (first == "'" and last == "'") then
-      v = v:sub(2, -2)
+    for _, l in ipairs(lines) do
+      if l:match('^' .. indent .. '%s+') then
+        table.insert(block_lines, l)
+      else
+        break
+      end
     end
+
+    value = table.concat(block_lines, value == '>' and ' ' or '\n')
   end
 
-  return v
+  return value
 end
 
---- extract value from YAML line "key: value"
----@param line string
----@param opts NeoVaultCopyOpts|nil
----@return string|nil errmsg
-function M.extract_value_from_line(line, opts)
-  if line:match('^%s*$') then
-    return nil, "empty"
-  end
-  if line:match('^%s*#') then
-    return nil, "comment"
-  end
-
-  -- first ':' occurence
-  local colon_pos = line:find(':')
-  if not colon_pos then
-    return nil, "format not correct"
-  end
-
-  local raw_value = line:sub(colon_pos + 1)
-  local value = M.normalize_value(raw_value, opts)
-
-  if value == '' then
-    return nil, "empty value"
-  end
-
-  return value, nil
-end
-
---- copy value in a register (degfault to '+')
+--- Copy YAML value under cursor, including multiline
 ---@param opts NeoVaultCopyOpts|nil
 function M.copy_value_under_cursor(opts)
   opts = opts or {}
   local reg = opts.register or '+'
-  local line = vim.api.nvim_get_current_line()
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local line_nr = cursor[1]
 
-  local value, err = M.extract_value_from_line(line, opts)
+  local value, err = M.extract_multiline_value(line_nr, opts)
   if not value then
     if opts.notify ~= false then
       vim.notify(err or "no value to copy", vim.log.levels.WARN)
@@ -113,6 +84,7 @@ function M.copy_value_under_cursor(opts)
   end
 end
 
+
 --- create a buffer mapping with CR
 ---@param bufnr integer    target buffer (0 = current buffer)
 ---@param opts NeoVaultCopyOpts|nil
@@ -125,6 +97,39 @@ function M.map_copy_value_cr(bufnr, opts)
     noremap = true,
     desc = 'NeoVault: copy current value',
   })
+end
+
+--- Extract multiline value from YAML starting at current line
+---@param start_line integer
+---@param opts NeoVaultCopyOpts|nil
+---@return string|nil errmsg
+function M.extract_multiline_value(start_line, opts)
+  local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, -1, false)
+  if #lines == 0 then return nil, "empty" end
+
+  local first_line = lines[1]
+  if first_line:match('^%s*$') then return nil, "empty" end
+  if first_line:match('^%s*#') then return nil, "comment" end
+
+  local colon_pos = first_line:find(':')
+  if not colon_pos then return nil, "format not correct" end
+
+  local raw_value = first_line:sub(colon_pos + 1)
+  local indent = first_line:match('^(%s*)') or ''
+  local value_lines = { raw_value }
+
+  for i = 2, #lines do
+    local line = lines[i]
+    if line:match('^%s*$') then break end
+    if not line:match('^' .. indent .. '%s+') then break end
+    table.insert(value_lines, line)
+  end
+
+  local full_value = table.concat(value_lines, '\n')
+  local value = M.normalize_value(full_value, opts)
+
+  if value == '' then return nil, "empty value" end
+  return value, nil
 end
 
 function M.to_yaml_lines(tbl)
